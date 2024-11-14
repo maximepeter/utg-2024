@@ -1,9 +1,10 @@
 from typing import List, NamedTuple, Dict, Optional, Literal, cast, get_args
 import sys
-import math
+import heapq
 
 # Auto-generated code below aims at helping you parse
 # the standard input according to the problem statement.
+
 
 def log(*message: str):
     print(*message, file=sys.stderr)
@@ -39,11 +40,19 @@ class Protein(NamedTuple):
     protein_type: ProteinType
 
 
+WALL_WEIGHT = 100
+PROTEIN_WEIGHT = 100
+EMPTY_WEIGHT = 1
+ORGAN_WEIGHT = 100
+MAX_WEIGHT = 1000
+
+
 class Cell(NamedTuple):
     pos: Pos
     isWall: bool = False
     protein: Optional[ProteinType] = None
     organ: Optional[Organ] = None
+    weight: int = EMPTY_WEIGHT
 
 
 class Grid:
@@ -51,7 +60,7 @@ class Grid:
 
     def __init__(self) -> None:
         self.reset()
-    
+
     def reset(self) -> None:
         self.cells = []
         for y in range(height):
@@ -62,9 +71,43 @@ class Grid:
         if width > pos.x >= 0 and height > pos.y >= 0:
             return self.cells[pos.x + width * pos.y]
         return None
-    
+
     def set_cell(self, pos: Pos, cell: Cell) -> None:
         self.cells[pos.x + width * pos.y] = cell
+
+    # Returns the List[Pos] of the shortest path. Empty if it's unreachable.
+    def dijkstra_shortest_path(self, start_x, start_y, goal_x, goal_y):
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        min_heap = [(0, start_x, start_y)]  # (cost, x, y)
+        min_cost_dict = {(start_x, start_y): 0}
+        predecessors_dict = {(start_x, start_y): (start_x, start_y)}  # To track the path
+
+        while min_heap:
+            current_cost, x, y = heapq.heappop(min_heap)
+
+            # If we reach the goal, reconstruct the path
+            if x == goal_x and y == goal_y:
+                path = []
+                while (x, y) != (start_x, start_y):
+                    path.append(Pos(x, y))
+                    x, y = predecessors_dict[(x, y)]
+                return (current_cost, path[::-1])  # Reverse the path to go from start to goal
+
+            # Explore neighbors
+            for dx, dy in directions:
+                nx, ny = x + dx, y + dy  # neighbor
+                if 0 <= nx < width and 0 <= ny < height:
+                    new_cost = current_cost + self.get_cell(Pos(nx, ny)).weight
+                    neighbor = (nx, ny)
+
+                    # Only add to heap if we found a cheaper way to get to (nx, ny)
+                    if neighbor not in min_cost_dict or new_cost < min_cost_dict[neighbor]:
+                        min_cost_dict[neighbor] = new_cost
+                        predecessors_dict[neighbor] = (x, y)
+                        heapq.heappush(min_heap, (new_cost, nx, ny))
+
+        # If there's no path to the goal, return None or an empty list
+        return (MAX_WEIGHT, [])
 
 
 class Game:
@@ -156,6 +199,24 @@ def harvest_closest_protein(protein_string: str, leaf_id: int):
 
 root_farmer_counter = 0
 root_killer_counter = 0
+# UTILITY FUNCTIONS --------------------------
+
+# Returns (Organ, Pos)
+def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list: List[Protein]):
+    min_cost = MAX_WEIGHT
+    origin = my_organs[0]
+    destination = target_protein_list[0]
+    for organ in my_organs:
+        for protein in target_protein_list:
+            (cost, path) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, protein.pos.x, protein.pos.y)
+            if cost < min_cost:
+                min_cost = cost
+                origin = organ
+                destination = path[-2]  # last element is the protein itself
+    return origin, destination
+
+
+# ---------------------------------------------
 
 # game loop
 while True:
@@ -178,14 +239,14 @@ while True:
         organ: Optional[Organ] = None
 
         if _type == WALL:
-            cell = Cell(pos, True)
+            cell = Cell(pos, True, weight=WALL_WEIGHT)
         elif _type in get_args(ProteinType):
-            cell = Cell(pos, False, cast(ProteinType, _type))
+            cell = Cell(pos, False, cast(ProteinType, _type), weight=PROTEIN_WEIGHT)
             protein = Protein(pos, _type)
             game.free_proteins.append(protein)
         else:
             organ = Organ(organ_id, owner, organ_parent_id, organ_root_id, pos, cast(OrganType, _type), organ_dir)
-            cell = Cell(pos, False, None, organ)
+            cell = Cell(pos, False, None, organ, weight=ORGAN_WEIGHT)
             if owner == 1:
                 game.my_organs.append(organ)
             else:
