@@ -1,4 +1,4 @@
-from typing import List, NamedTuple, Dict, Optional, Literal, cast
+from typing import List, NamedTuple, Dict, Optional, Literal, cast, get_args
 import sys
 import math
 
@@ -32,6 +32,11 @@ class Organ(NamedTuple):
     pos: Pos
     organ_type: OrganType
     dir: DirectionType
+
+
+class Protein(NamedTuple):
+    pos: Pos
+    protein_type: ProteinType
 
 
 class Cell(NamedTuple):
@@ -68,6 +73,7 @@ class Game:
     opp_proteins: Dict[ProteinType, int]
     my_organs: List[Organ]
     opp_organs: List[Organ]
+    free_proteins = List[Protein]
     organ_map: Dict[int, Organ]
 
     def __init__(self) -> None:
@@ -80,6 +86,7 @@ class Game:
         self.grid.reset()
         self.my_organs = []
         self.opp_organs = []
+        self.free_proteins = []
         self.organ_map = {}
 
 
@@ -107,8 +114,10 @@ while True:
 
         if _type == WALL:
             cell = Cell(pos, True)
-        elif _type is ProteinType:
+        elif _type in get_args(ProteinType):
             cell = Cell(pos, False, cast(ProteinType, _type))
+            protein = Protein(pos, _type)
+            game.free_proteins.append(protein)
         else:
             organ = Organ(organ_id, owner, organ_parent_id, organ_root_id, pos, cast(OrganType, _type), organ_dir)
             cell = Cell(pos, False, None, organ)
@@ -136,7 +145,7 @@ while True:
         my_last_organ = game.my_organs[-1]
         my_last_organ_id = my_last_organ.id
 
-        opp_last_organ = game.opp_organs[0]
+        opp_last_organ = game.opp_organs[-1]
         opp_pos = opp_last_organ.pos
         opp_x, opp_y = opp_pos.x, opp_pos.y
 
