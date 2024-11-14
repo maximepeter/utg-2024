@@ -135,6 +135,25 @@ class Game:
 
 game: Game = Game()
 
+# UTILITY FUNCTIONS --------------------------
+
+# Returns (Organ, Pos)
+def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list: List[Protein]):
+    min_cost = MAX_WEIGHT
+    origin = my_organs[0]
+    destination = target_protein_list[0]
+    for organ in my_organs:
+        for protein in target_protein_list:
+            (cost, path) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, protein.pos.x, protein.pos.y)
+            if cost < min_cost:
+                min_cost = cost
+                origin = organ
+                destination = path[-2]  # last element is the protein itself
+    return origin, destination
+
+
+# ---------------------------------------------
+
 # game loop
 while True:
     game.reset()
@@ -195,11 +214,3 @@ while True:
         print(f"GROW {my_last_organ_id} {opp_x} {opp_y} BASIC")
 
 
-# HARVERSTING STRAT:
-    # p = get closest protein
-    # go NEXT TO p
-    # harvest p (get direction)
-    # get closest : *enemy* or *protein* (strategy)
-    # EXCLUDE PROTEINS FROM PATH
-
-# -----------------------------------
