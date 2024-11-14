@@ -166,8 +166,10 @@ while True:
     # get closest : *enemy* or *protein* (strategy)
     # EXCLUDE PROTEINS FROM PATH
 
+# -----------------------------------
+
 # TO TEST
-# Returns the list of the Pos being the shortest path. Empty if it's unreachable.
+# Returns the List[Pos] of the shortest path. Empty if it's unreachable.
 def dijkstra_shortest_path(grid: Grid, start_x, start_y, goal_x, goal_y) -> List[Pos]:
     directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
     min_heap = [(0, start_x, start_y)]  # (cost, x, y)
