@@ -41,7 +41,7 @@ class Protein(NamedTuple):
 
 
 WALL_WEIGHT = 100
-PROTEIN_WEIGHT = 100
+PROTEIN_WEIGHT = 1
 EMPTY_WEIGHT = 1
 ORGAN_WEIGHT = 100
 MAX_WEIGHT = 1000
@@ -170,9 +170,6 @@ def get_protein_list(protein_string: str, free_proteins: List[Protein]) -> List[
             protein_list.append(protein)
     return protein_list
 
-def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list: List[Protein]):
-    return my_organs[-1], target_protein_list[0]
-
 def harvest_closest_protein(protein_string: str, leaf_id: int):
     if game.free_proteins:
         target_protein_list = get_protein_list(protein_string, game.free_proteins)
@@ -181,21 +178,29 @@ def harvest_closest_protein(protein_string: str, leaf_id: int):
             for organ in game.my_organs:
                 if organ.root_id == 1:
                     root_farmer_organs.append(organ)
-            start_organ, closest_target_protein_empty_space = get_closest_protein_empty_space(root_farmer_organs, target_protein_list)
+            start_organ, closest_target_protein_empty_space, closest_target_protein_pos = get_closest_protein_empty_space(root_farmer_organs, target_protein_list)
             start_organ_x, start_organ_y = start_organ.pos.x, start_organ.pos.y
             start_organ_id = start_organ.id
-            closest_target_protein_empty_space_x, closest_target_protein_empty_space_y = closest_target_protein_empty_space.pos.x, closest_target_protein_empty_space.pos.y
-            direction = next_to(start_organ_x, start_organ_y, closest_target_protein_empty_space_x, closest_target_protein_empty_space_y)
-            if direction:
-                print(f"GROW {start_organ_id } {closest_target_protein_empty_space_x} {closest_target_protein_empty_space_y} HARVESTER {direction}")
-                root_farmer_counter += 1
+            closest_target_protein_empty_space_x, closest_target_protein_empty_space_y = closest_target_protein_empty_space.x, closest_target_protein_empty_space.y
+            print(f"Start Organ x,y = {start_organ_x},{start_organ_y}", file=sys.stderr, flush=True)
+            print(f"Harvester Cell x,y = {closest_target_protein_empty_space.x},{closest_target_protein_empty_space.y}", file=sys.stderr, flush=True)
+            print(f"Target Protein x,y = {closest_target_protein_pos.x},{closest_target_protein_pos.y}", file=sys.stderr, flush=True)
+            direction_to_harvester = next_to(start_organ_x, start_organ_y, closest_target_protein_empty_space_x, closest_target_protein_empty_space_y)
+            print(f"Direction to Harvester = {direction_to_harvester}", file=sys.stderr, flush=True)
+            if direction_to_harvester:
+                direction_to_protein = next_to(closest_target_protein_empty_space_x, closest_target_protein_empty_space_y, closest_target_protein_pos.x, closest_target_protein_pos.y)
+                print(f"Direction to Protein = {direction_to_protein}", file=sys.stderr, flush=True)
+                print(f"GROW {start_organ_id } {closest_target_protein_empty_space_x} {closest_target_protein_empty_space_y} HARVESTER {direction_to_protein}")
+                return root_farmer_counter + 1
             else:
                 print(f"GROW {start_organ_id} {closest_target_protein_empty_space_x} {closest_target_protein_empty_space_y} BASIC")
+                return root_farmer_counter
         else:
-            root_farmer_counter += 1
             grow_random_basic(leaf_id)
+            return root_farmer_counter + 1
     else:
         grow_random_basic(leaf_id)
+        return root_farmer_counter + 1
 
 root_farmer_counter = 0
 root_killer_counter = 0
@@ -212,8 +217,9 @@ def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list:
             if cost < min_cost:
                 min_cost = cost
                 origin = organ
+                protein_pos = path[-1]
                 destination = path[-2]  # last element is the protein itself
-    return origin, destination
+    return origin, destination, protein_pos
 
 
 # ---------------------------------------------
@@ -277,18 +283,15 @@ while True:
             if leaf.root_id == 1:
                 # STEP 1: HARVEST CLOSEST A
                 if root_farmer_counter == 0:
-                    harvest_closest_protein('A', leaf_id)
+                    root_farmer_counter = harvest_closest_protein('A', leaf_id)
                 # STEP 2: HARVEST CLOSEST C
                 elif root_farmer_counter == 1:
-                    harvest_closest_protein('C', leaf_id)
+                    root_farmer_counter = harvest_closest_protein('C', leaf_id)
                 # STEP 3: HARVEST CLOSEST D
                 elif root_farmer_counter == 2:
-                    harvest_closest_protein('D', leaf_id)
+                    root_farmer_counter = harvest_closest_protein('D', leaf_id)
                 # STEP 4: HARVEST CLOSEST C
                 elif root_farmer_counter == 3:
-                    harvest_closest_protein('B', leaf_id)
+                    root_farmer_counter = harvest_closest_protein('B', leaf_id)
                 else:
-                    grow_random_basic(leaf_id)
-
-            # ROOT KILLER
-            # else:
+                    root_farmer_counter = grow_random_basic(leaf_id)
