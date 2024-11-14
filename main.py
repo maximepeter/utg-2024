@@ -211,6 +211,7 @@ def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list:
     min_cost = MAX_WEIGHT
     origin = my_organs[0]
     destination = target_protein_list[0]
+    dest_protein = None
     for organ in my_organs:
         # filter protein list to get only possible spaces
         possible_dest = get_good_protein_neighbors(target_protein_list, game.grid)
@@ -220,7 +221,8 @@ def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list:
                 min_cost = cost
                 origin = organ
                 destination = path[-1]  # last element is the neighbor of possible_prot
-    return origin, destination, protein
+                dest_protein = protein
+    return origin, destination, dest_protein
 
 # Returns the list of possible neighbors of all proteins (proteins itself not included)
 def get_good_protein_neighbors(target_protein_list: List[Protein], grid: Grid) -> List[tuple[Protein, Pos]]:
