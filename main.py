@@ -211,7 +211,7 @@ def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list:
     min_cost = MAX_WEIGHT
     origin = my_organs[0]
     destination = target_protein_list[0]
-    dest_protein = None
+    dest_protein = target_protein_list[0]
     for organ in my_organs:
         # filter protein list to get only possible spaces
         possible_dest = get_good_protein_neighbors(target_protein_list, game.grid)
@@ -230,7 +230,7 @@ def get_good_protein_neighbors(target_protein_list: List[Protein], grid: Grid) -
     for p in target_protein_list:
         directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
         for dx, dy in directions:
-            n = Pos(dx, dy)
+            n = Pos(dx + p.pos.x, dy + p.pos.y)
             c = grid.get_cell(n)
             if (c is not None) and not (c.isWall or c.organ):
                 useful.append((p, n))
