@@ -147,21 +147,20 @@ def next_to(x1, y1, x2, y2):
     else:
         return None  # Not adjacent or not a cardinal direction
     
-def grow_random_basic(id: int):
+def grow_random_basic():
     for cell in game.grid.cells:
         if not cell.isWall and not cell.protein and not cell.organ in game.opp_organs and not cell.organ in game.my_organs:
             empty_cell_x, empty_cell_y = cell.pos.x, cell.pos.y
-            print(f"GROW {id} {empty_cell_x} {empty_cell_y} BASIC")
+            min_cost = MAX_WEIGHT
+            origin = game.my_organs[0]
+            for organ in game.my_organs:
+                (cost, path) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, empty_cell_x, empty_cell_y)
+                if cost < min_cost:
+                    min_cost = cost
+                    origin = organ
+            print(f"GROW {origin.id} {empty_cell_x} {empty_cell_y} BASIC")
+            break
 
-def get_leaves() -> List[Organ]:
-    parents_id_list = []
-    leaves_list = []
-    for organ in game.my_organs:
-        parents_id_list.append(organ.parent_id)
-    for organ in game.my_organs:
-        if organ.id not in parents_id_list:
-            leaves_list.append(organ)
-    return leaves_list
 
 def get_protein_list(protein_string: str, free_proteins: List[Protein]) -> List[Protein]:
     protein_list = []
@@ -170,7 +169,7 @@ def get_protein_list(protein_string: str, free_proteins: List[Protein]) -> List[
             protein_list.append(protein)
     return protein_list
 
-def harvest_closest_protein(protein_string: str, leaf_id: int):
+def harvest_closest_protein(protein_string: str):
     if game.free_proteins:
         target_protein_list = get_protein_list(protein_string, game.free_proteins)
         if target_protein_list:
@@ -196,10 +195,10 @@ def harvest_closest_protein(protein_string: str, leaf_id: int):
                 print(f"GROW {start_organ_id} {closest_target_protein_empty_space_x} {closest_target_protein_empty_space_y} BASIC")
                 return root_farmer_counter
         else:
-            grow_random_basic(leaf_id)
+            grow_random_basic()
             return root_farmer_counter + 1
     else:
-        grow_random_basic(leaf_id)
+        grow_random_basic()
         return root_farmer_counter + 1
 
 root_farmer_counter = 0
@@ -274,24 +273,17 @@ while True:
 
         # Write an action using print
         # To debug: print("Debug messages...", file=sys.stderr, flush=True)
-        leaves_list = get_leaves()
-        
-        for leaf in leaves_list:
-            leaf_x, leaf_y = leaf.pos.x, leaf.pos.y
-            leaf_id = leaf.id
-            # ROOT FARMER
-            if leaf.root_id == 1:
-                # STEP 1: HARVEST CLOSEST A
-                if root_farmer_counter == 0:
-                    root_farmer_counter = harvest_closest_protein('A', leaf_id)
-                # STEP 2: HARVEST CLOSEST C
-                elif root_farmer_counter == 1:
-                    root_farmer_counter = harvest_closest_protein('C', leaf_id)
-                # STEP 3: HARVEST CLOSEST D
-                elif root_farmer_counter == 2:
-                    root_farmer_counter = harvest_closest_protein('D', leaf_id)
-                # STEP 4: HARVEST CLOSEST C
-                elif root_farmer_counter == 3:
-                    root_farmer_counter = harvest_closest_protein('B', leaf_id)
-                else:
-                    root_farmer_counter = grow_random_basic(leaf_id)
+        # STEP 1: HARVEST CLOSEST A
+        if root_farmer_counter == 0:
+            root_farmer_counter = harvest_closest_protein('A')
+        # STEP 2: HARVEST CLOSEST C
+        elif root_farmer_counter == 1:
+            root_farmer_counter = harvest_closest_protein('C')
+        # STEP 3: HARVEST CLOSEST D
+        elif root_farmer_counter == 2:
+            root_farmer_counter = harvest_closest_protein('D')
+        # STEP 4: HARVEST CLOSEST C
+        elif root_farmer_counter == 3:
+            root_farmer_counter = harvest_closest_protein('B')
+        else:
+            root_farmer_counter = grow_random_basic()
