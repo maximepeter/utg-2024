@@ -135,6 +135,10 @@ class Game:
 
 game: Game = Game()
 
+root_farmer_counter = 0
+root_killer_counter = 0
+# UTILITY FUNCTIONS --------------------------
+
 def next_to(x1, y1, x2, y2):
     if x2 == x1 and y2 == y1 - 1:
         return 'N'  # North
@@ -201,26 +205,36 @@ def harvest_closest_protein(protein_string: str):
         grow_random_basic()
         return root_farmer_counter + 1
 
-root_farmer_counter = 0
-root_killer_counter = 0
-# UTILITY FUNCTIONS --------------------------
-
 # Returns (Organ, Pos)
 def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list: List[Protein]):
     min_cost = MAX_WEIGHT
     origin = my_organs[0]
     destination = target_protein_list[0]
+    dest_protein = target_protein_list[0]
     for organ in my_organs:
-        for protein in target_protein_list:
-            (cost, path) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, protein.pos.x, protein.pos.y)
+        # filter protein list to get only possible spaces
+        possible_dest = get_good_protein_neighbors(target_protein_list, game.grid)
+        for protein, neighbor in possible_dest:
+            (cost, path) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, neighbor.x, neighbor.y)
             if cost < min_cost:
                 min_cost = cost
                 origin = organ
-                protein_pos = path[-1]
-                destination = path[-2]  # last element is the protein itself
-    return origin, destination, protein_pos
+                destination = path[-1]  # last element is the neighbor of possible_prot
+                dest_protein = protein
+    return origin, destination, dest_protein
 
-
+# Returns the list of possible neighbors of all proteins (proteins itself not included)
+def get_good_protein_neighbors(target_protein_list: List[Protein], grid: Grid) -> List[tuple[Protein, Pos]]:
+    useful = []  # protein, neighbor_pos
+    for p in target_protein_list:
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        for dx, dy in directions:
+            n = Pos(dx + p.pos.x, dy + p.pos.y)
+            c = grid.get_cell(n)
+            if (c is not None) and not (c.isWall or c.organ):
+                useful.append((p, n))
+    return useful
+    
 # ---------------------------------------------
 
 # game loop
