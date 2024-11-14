@@ -1,6 +1,7 @@
 from typing import List, NamedTuple, Dict, Optional, Literal, cast, get_args
 import sys
 import math
+import heapq
 
 # Auto-generated code below aims at helping you parse
 # the standard input according to the problem statement.
@@ -39,11 +40,17 @@ class Protein(NamedTuple):
     protein_type: ProteinType
 
 
+WALL_WEIGHT = 100
+PROTEIN_WEIGHT = 100
+EMPTY_WEIGHT = 1
+ENEMY_WEIGHT = 100
+
 class Cell(NamedTuple):
     pos: Pos
     isWall: bool = False
     protein: Optional[ProteinType] = None
     organ: Optional[Organ] = None
+    weight: int
 
 
 class Grid:
@@ -56,7 +63,7 @@ class Grid:
         self.cells = []
         for y in range(height):
             for x in range(width):
-                self.cells.append(Cell(Pos(x, y)))
+                self.cells.append(Cell(Pos(x, y), weight=EMPTY_WEIGHT))
 
     def get_cell(self, pos: Pos) -> Optional[Cell]:
         if width > pos.x >= 0 and height > pos.y >= 0:
@@ -113,14 +120,14 @@ while True:
         organ: Optional[Organ] = None
 
         if _type == WALL:
-            cell = Cell(pos, True)
+            cell = Cell(pos, True, weight=WALL_WEIGHT)
         elif _type in get_args(ProteinType):
-            cell = Cell(pos, False, cast(ProteinType, _type))
+            cell = Cell(pos, False, cast(ProteinType, _type), weight=PROTEIN_WEIGHT)
             protein = Protein(pos, _type)
             game.free_proteins.append(protein)
         else:
             organ = Organ(organ_id, owner, organ_parent_id, organ_root_id, pos, cast(OrganType, _type), organ_dir)
-            cell = Cell(pos, False, None, organ)
+            cell = Cell(pos, False, None, organ, weight=ENEMY_WEIGHT)
             if owner == 1:
                 game.my_organs.append(organ)
             else:
@@ -150,3 +157,46 @@ while True:
         opp_x, opp_y = opp_pos.x, opp_pos.y
 
         print(f"GROW {my_last_organ_id} {opp_x} {opp_y} BASIC")
+
+
+# HARVERSTING STRAT:
+    # p = get closest protein
+    # go NEXT TO p
+    # harvest p (get direction)
+    # get closest : *enemy* or *protein* (strategy)
+    # EXCLUDE PROTEINS FROM PATH
+
+# TO TEST
+# Returns the list of the Pos being the shortest path. Empty if it's unreachable.
+def dijkstra_shortest_path(grid: Grid, start_x, start_y, goal_x, goal_y) -> List[Pos]:
+    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+    min_heap = [(0, start_x, start_y)]  # (cost, x, y)
+    min_cost = {(start_x, start_y): 0}
+    predecessor = {(start_x, start_y): None}  # To track the path
+
+    while min_heap:
+        current_cost, x, y = heapq.heappop(min_heap)
+        
+        # If we reach the goal, reconstruct the path
+        if x == goal_x and y == goal_y:
+            path = []
+            while (x, y) is not None:
+                path.append(Pos(x, y))
+                x, y = predecessor[(x, y)]
+            return path[::-1]  # Reverse the path to go from start to goal
+        
+        # Explore neighbors
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy # neighbor
+            if 0 <= nx < height and 0 <= ny < width:
+                new_cost = current_cost + grid.get_cell(Pos(nx, ny)).weight
+                neighbor = (nx, ny)
+                
+                # Only add to heap if we found a cheaper way to get to (nx, ny)
+                if neighbor not in min_cost or new_cost < min_cost[neighbor]:
+                    min_cost[neighbor] = new_cost
+                    predecessor[neighbor] = (x, y)
+                    heapq.heappush(min_heap, (new_cost, nx, ny))
+
+    # If there's no path to the goal, return None or an empty list
+    return []
