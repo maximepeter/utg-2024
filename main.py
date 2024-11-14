@@ -1,10 +1,10 @@
 from typing import List, NamedTuple, Dict, Optional, Literal, cast, get_args
 import sys
-import math
 import heapq
 
 # Auto-generated code below aims at helping you parse
 # the standard input according to the problem statement.
+
 
 def log(*message: str):
     print(*message, file=sys.stderr)
@@ -43,14 +43,16 @@ class Protein(NamedTuple):
 WALL_WEIGHT = 100
 PROTEIN_WEIGHT = 100
 EMPTY_WEIGHT = 1
-ENEMY_WEIGHT = 100
+ORGAN_WEIGHT = 100
+MAX_WEIGHT = 1000
+
 
 class Cell(NamedTuple):
     pos: Pos
     isWall: bool = False
     protein: Optional[ProteinType] = None
     organ: Optional[Organ] = None
-    weight: int
+    weight: int = EMPTY_WEIGHT
 
 
 class Grid:
@@ -58,20 +60,54 @@ class Grid:
 
     def __init__(self) -> None:
         self.reset()
-    
+
     def reset(self) -> None:
         self.cells = []
         for y in range(height):
             for x in range(width):
-                self.cells.append(Cell(Pos(x, y), weight=EMPTY_WEIGHT))
+                self.cells.append(Cell(Pos(x, y)))
 
     def get_cell(self, pos: Pos) -> Optional[Cell]:
         if width > pos.x >= 0 and height > pos.y >= 0:
             return self.cells[pos.x + width * pos.y]
         return None
-    
+
     def set_cell(self, pos: Pos, cell: Cell) -> None:
         self.cells[pos.x + width * pos.y] = cell
+
+    # Returns the List[Pos] of the shortest path. Empty if it's unreachable.
+    def dijkstra_shortest_path(self, start_x, start_y, goal_x, goal_y):
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        min_heap = [(0, start_x, start_y)]  # (cost, x, y)
+        min_cost_dict = {(start_x, start_y): 0}
+        predecessors_dict = {(start_x, start_y): (start_x, start_y)}  # To track the path
+
+        while min_heap:
+            current_cost, x, y = heapq.heappop(min_heap)
+
+            # If we reach the goal, reconstruct the path
+            if x == goal_x and y == goal_y:
+                path = []
+                while (x, y) != (start_x, start_y):
+                    path.append(Pos(x, y))
+                    x, y = predecessors_dict[(x, y)]
+                return (current_cost, path[::-1])  # Reverse the path to go from start to goal
+
+            # Explore neighbors
+            for dx, dy in directions:
+                nx, ny = x + dx, y + dy  # neighbor
+                if 0 <= nx < width and 0 <= ny < height:
+                    new_cost = current_cost + self.get_cell(Pos(nx, ny)).weight
+                    neighbor = (nx, ny)
+
+                    # Only add to heap if we found a cheaper way to get to (nx, ny)
+                    if neighbor not in min_cost_dict or new_cost < min_cost_dict[neighbor]:
+                        min_cost_dict[neighbor] = new_cost
+                        predecessors_dict[neighbor] = (x, y)
+                        heapq.heappush(min_heap, (new_cost, nx, ny))
+
+        # If there's no path to the goal, return None or an empty list
+        return (MAX_WEIGHT, [])
 
 
 class Game:
@@ -127,7 +163,7 @@ while True:
             game.free_proteins.append(protein)
         else:
             organ = Organ(organ_id, owner, organ_parent_id, organ_root_id, pos, cast(OrganType, _type), organ_dir)
-            cell = Cell(pos, False, None, organ, weight=ENEMY_WEIGHT)
+            cell = Cell(pos, False, None, organ, weight=ORGAN_WEIGHT)
             if owner == 1:
                 game.my_organs.append(organ)
             else:
@@ -167,38 +203,3 @@ while True:
     # EXCLUDE PROTEINS FROM PATH
 
 # -----------------------------------
-
-# TO TEST
-# Returns the List[Pos] of the shortest path. Empty if it's unreachable.
-def dijkstra_shortest_path(grid: Grid, start_x, start_y, goal_x, goal_y) -> List[Pos]:
-    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-    min_heap = [(0, start_x, start_y)]  # (cost, x, y)
-    min_cost = {(start_x, start_y): 0}
-    predecessor = {(start_x, start_y): None}  # To track the path
-
-    while min_heap:
-        current_cost, x, y = heapq.heappop(min_heap)
-        
-        # If we reach the goal, reconstruct the path
-        if x == goal_x and y == goal_y:
-            path = []
-            while (x, y) is not None:
-                path.append(Pos(x, y))
-                x, y = predecessor[(x, y)]
-            return path[::-1]  # Reverse the path to go from start to goal
-        
-        # Explore neighbors
-        for dx, dy in directions:
-            nx, ny = x + dx, y + dy # neighbor
-            if 0 <= nx < height and 0 <= ny < width:
-                new_cost = current_cost + grid.get_cell(Pos(nx, ny)).weight
-                neighbor = (nx, ny)
-                
-                # Only add to heap if we found a cheaper way to get to (nx, ny)
-                if neighbor not in min_cost or new_cost < min_cost[neighbor]:
-                    min_cost[neighbor] = new_cost
-                    predecessor[neighbor] = (x, y)
-                    heapq.heappush(min_heap, (new_cost, nx, ny))
-
-    # If there's no path to the goal, return None or an empty list
-    return []
