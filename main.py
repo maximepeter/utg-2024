@@ -132,11 +132,6 @@ class Game:
         self.free_proteins = []
         self.organ_map = {}
 
-
-game: Game = Game()
-
-root_farmer_counter = 0
-root_killer_counter = 0
 # UTILITY FUNCTIONS --------------------------
 
 def next_to(x1, y1, x2, y2):
@@ -158,7 +153,7 @@ def grow_random_basic():
             min_cost = MAX_WEIGHT
             origin = game.my_organs[0]
             for organ in game.my_organs:
-                (cost, path) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, empty_cell_x, empty_cell_y)
+                (cost, _) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, empty_cell_x, empty_cell_y)
                 if cost < min_cost:
                     min_cost = cost
                     origin = organ
@@ -213,9 +208,9 @@ root_killer_counter = 0
 # Returns (Organ, Pos)
 def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list: List[Protein]):
     min_cost = MAX_WEIGHT
-    origin = my_organs[0]
-    destination = target_protein_list[0]
-    dest_protein = target_protein_list[0]
+    origin_organ = my_organs[0]
+    destination_harvest_pos = target_protein_list[0]
+    destination_protein = target_protein_list[0]
     for organ in my_organs:
         # filter protein list to get only possible spaces
         possible_dest = get_good_protein_neighbors(target_protein_list, game.grid)
@@ -223,10 +218,10 @@ def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list:
             (cost, path) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, neighbor.x, neighbor.y)
             if cost < min_cost:
                 min_cost = cost
-                origin = organ
-                destination = path[-1]  # last element is the neighbor of possible_prot
-                dest_protein = protein
-    return origin, destination, dest_protein
+                origin_organ = organ
+                destination_harvest_pos = path[-1]  # last element is the neighbor of possible_prot
+                destination_protein = protein
+    return origin_organ, destination_harvest_pos, destination_protein
 
 # Returns the list of possible neighbors of all proteins (proteins itself not included)
 def get_good_protein_neighbors(target_protein_list: List[Protein], grid: Grid) -> List[tuple[Protein, Pos]]:
@@ -239,13 +234,42 @@ def get_good_protein_neighbors(target_protein_list: List[Protein], grid: Grid) -
             if (c is not None) and not (c.isWall or c.organ):
                 useful.append((p, n))
     return useful
-    
+
+# START ================== Max's functions ==================
+
+# def get_best_sporer_position(organs):
+#     ???
+#     return x,y
+
+# def get_best_sporer_direction(organ: Organ, grid: Grid):
+#     directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+#     best_position = None
+#     best_direction = None
+#     best_score = max(width-1, height-1)
+#     for dx, dy in directions:
+#         possible_sporer_pos = Pos(dx + organ.pos.x, dy + organ.pos.y)
+#         possible_sporer_cell = grid.get_cell(possible_sporer_pos)
+#         if (possible_sporer_cell is not None) and not (possible_sporer_cell.isWall or possible_sporer_cell.organ):
+
+def spawn_harvester(id, harvester_x, harvester_y, direction):
+    print(f"GROW {id} {harvester_x} {harvester_y} HARVESTER {direction}")
+
+def spawn_basic(id, basic_x, basic_y):
+    print(f"GROW {i} {basic_x} {basic_y} BASIC")
+
+def spawn_sporer(id, sporer_x, sporer_y, direction):
+    print(f"GROW {id} {sporer_x} {sporer_y} SPORER {direction}")
+# END ================== Max's functions ==================
+
 # ---------------------------------------------
+
+game: Game = Game()
+is_sporer = False
 
 # game loop
 while True:
+    # Initialisation
     game.reset()
-
     entity_count: int = int(input())
     for i in range(entity_count):
         inputs: List[str] = input().split()
@@ -288,44 +312,64 @@ while True:
 
     required_actions_count: int = int(input())
 
+    # Actions
     for i in range(required_actions_count):
+        can_spawn_sporer = (game.my_proteins["B"], game.my_proteins["D"]) == (1,1)
+        can_spore = (game.my_proteins["A"], game.my_proteins["B"], game.my_proteins["C"], game.my_proteins["D"]) == (1,1,1,1) and is_sporer
+        can_spawn_tentacle = (game.my_proteins["B"], game.my_proteins["C"]) == (1,1)
+        need_A = game.my_proteins["A"] < required_actions_count # All roots should be able to grow
+        need_B = game.my_proteins["B"] < 2 * required_actions_count # All roots should be able to create a root
+        need_C = game.my_proteins["C"] < required_actions_count # All roots should be able to create a tentacle
+        need_D = game.my_proteins["D"] < 2 * required_actions_count # All roots should be able to create a root
 
-        # Write an action using print
-        # To debug: print("Debug messages...", file=sys.stderr, flush=True)
-        if main_counter == 0:
-            first_organ = game.my_organs[0]
-            enemy_direction = ('E' if first_organ.pos.x < width/2 else 'W')
-            organ_direction = ('S' if first_organ.pos.y < height/2 else 'N')
-            left_cell = game.grid.get_cells({first_organ.pos.x-1}, {first_organ.pos.y})
-            second_left_cell = game.grid.get_cells({first_organ.pos.x-2}, {first_organ.pos.y})
-            left_cell = game.grid.get_cells({first_organ.pos.x-1}, {first_organ.pos.y})
-            second_left_cell = game.grid.get_cells({first_organ.pos.x-2}, {first_organ.pos.y})
-            while not game.grid.get_cells({first_organ.pos.x-1}, {first_organ.pos.y}).isWall and not game.grid.get_cells({first_organ.pos.x-2}, {first_organ.pos.y}).isWall:
-
-            if first_organ.pos.x < width/2:
-                enemy_direction = 'E'
-                print(f"GROW {first_organ.id} {first_organ.pos.x+1} {first_organ.pos.y} SPORER {enemy_direction}")
+        if can_spawn_sporer:
+            pass
+            # sporer_x, sporer_y = get_best_sporer_position(game.my_organs)
+            # direction = ???
+            # spawn_sporer(i, sporer_x, sporer_y, direction)
+            # is_sporer = True
+        # elif can_spore:
+        #     spore(???)
+        # elif can_spawn_tentacle:
+        #     # Grow a tentacle as close as possible to the ennemy
+        #     # spawn_tentacle(???)
+        #     # spawn_position = get_pos_close_to_enemy(game.grid, game.my_organs, game.opp_organs)
+        #     # spawn_tentacle(i, spawn_position.pos.x, spawn_position.pos.x, direction)
+        #     pass
+        elif need_A:
+            a_proteins = get_protein_list("A", game.free_proteins)
+            origin_organ, destination_harvest_pos, destination_protein = get_closest_protein_empty_space(game.my_organs, a_proteins)
+            direction = next_to(origin_organ.pos.x, origin_organ.pos.y, destination_harvest_pos.x, destination_harvest_pos.y)
+            if direction:
+                spawn_harvester(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y, direction)
             else:
-                enemy_direction = 'W'
-                if not game.grid.get_cells({first_organ.pos.x-1}, {first_organ.pos.y}).isWall and not game.grid.get_cells({first_organ.pos.x-2}, {first_organ.pos.y}).isWall:
-                    print(f"GROW {first_organ.id} {first_organ.pos.x-1} {first_organ.pos.y} SPORER {enemy_direction}")
-                else:
-                    if first_organ.pos.y < height/2:
-                        print(f"GROW {first_organ.id} {first_organ.pos.x} {first_organ.pos.y+1} SPORER S")
-
-            
+                spawn_basic(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y)
+        elif need_B:
+            b_proteins = get_protein_list("B", game.free_proteins)
+            origin_organ, destination_harvest_pos, destination_protein = get_closest_protein_empty_space(game.my_organs, b_proteins)
+            direction = next_to(origin_organ.pos.x, origin_organ.pos.y, destination_harvest_pos.x, destination_harvest_pos.y)
+            if direction:
+                spawn_harvester(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y, direction)
+            else:
+                spawn_basic(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y)
+            pass
+        elif need_C:
+            c_proteins = get_protein_list("C", game.free_proteins)
+            origin_organ, destination_harvest_pos, destination_protein = get_closest_protein_empty_space(game.my_organs, c_proteins)
+            direction = next_to(origin_organ.pos.x, origin_organ.pos.y, destination_harvest_pos.x, destination_harvest_pos.y)
+            if direction:
+                spawn_harvester(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y, direction)
+            else:
+                spawn_basic(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y)
+            pass
+        elif need_D:
+            d_proteins = get_protein_list("D", game.free_proteins)
+            origin_organ, destination_harvest_pos, destination_protein = get_closest_protein_empty_space(game.my_organs, d_proteins)
+            direction = next_to(origin_organ.pos.x, origin_organ.pos.y, destination_harvest_pos.x, destination_harvest_pos.y)
+            if direction:
+                spawn_harvester(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y, direction)
+            else:
+                spawn_basic(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y)
+            pass
         else:
-            # STEP 1: HARVEST CLOSEST A
-            if root_farmer_counter == 0:
-                root_farmer_counter = harvest_closest_protein('A')
-            # STEP 2: HARVEST CLOSEST C
-            elif root_farmer_counter == 1:
-                root_farmer_counter = harvest_closest_protein('C')
-            # STEP 3: HARVEST CLOSEST D
-            elif root_farmer_counter == 2:
-                root_farmer_counter = harvest_closest_protein('D')
-            # STEP 4: HARVEST CLOSEST C
-            elif root_farmer_counter == 3:
-                root_farmer_counter = harvest_closest_protein('B')
-            else:
-                root_farmer_counter = grow_random_basic()
+            grow_random_basic()
