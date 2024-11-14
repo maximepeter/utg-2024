@@ -11,7 +11,7 @@ def log(*message: str):
 
 ProteinType = Literal['A', 'B', 'C', 'D']
 DirectionType = Literal['N', 'E', 'S', 'W']
-OrganType = Literal['ROOT', 'BASIC']
+OrganType = Literal['ROOT', 'BASIC', 'HARVESTER']
 WALL: str = 'WALL'
 
 width: int
@@ -133,4 +133,11 @@ while True:
 
         # Write an action using print
         # To debug: print("Debug messages...", file=sys.stderr, flush=True)
-        print("WAIT")
+        my_last_organ = game.my_organs[-1]
+        my_last_organ_id = my_last_organ.id
+
+        opp_last_organ = game.opp_organs[0]
+        opp_pos = opp_last_organ.pos
+        opp_x, opp_y = opp_pos.x, opp_pos.y
+
+        print(f"GROW {my_last_organ_id} {opp_x} {opp_y} BASIC")
