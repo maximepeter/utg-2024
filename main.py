@@ -92,6 +92,71 @@ class Game:
 
 game: Game = Game()
 
+def next_to(x1, y1, x2, y2):
+    if x2 == x1 and y2 == y1 - 1:
+        return 'N'  # North
+    elif x2 == x1 and y2 == y1 + 1:
+        return 'S'  # South
+    elif x2 == x1 + 1 and y2 == y1:
+        return 'E'  # East
+    elif x2 == x1 - 1 and y2 == y1:
+        return 'W'  # West
+    else:
+        return None  # Not adjacent or not a cardinal direction
+    
+def grow_random_basic(id: int):
+    for cell in game.grid.cells:
+        if not cell.isWall and not cell.protein and not cell.organ in game.opp_organs and not cell.organ in game.my_organs:
+            empty_cell_x, empty_cell_y = cell.pos.x, cell.pos.y
+            print(f"GROW {id} {empty_cell_x} {empty_cell_y} BASIC")
+
+def get_leaves() -> List[Organ]:
+    parents_id_list = []
+    leaves_list = []
+    for organ in game.my_organs:
+        parents_id_list.append(organ.parent_id)
+    for organ in game.my_organs:
+        if organ.id not in parents_id_list:
+            leaves_list.append(organ)
+    return leaves_list
+
+def get_protein_list(protein_string: str, free_proteins: List[Protein]) -> List[Protein]:
+    protein_list = []
+    for protein in free_proteins:
+        if protein.protein_type == protein_string:
+            protein_list.append(protein)
+    return protein_list
+
+def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list: List[Protein]):
+    return my_organs[-1], target_protein_list[0]
+
+def harvest_closest_protein(protein_string: str, leaf_id: int):
+    if game.free_proteins:
+        target_protein_list = get_protein_list(protein_string, game.free_proteins)
+        if target_protein_list:
+            root_farmer_organs = []
+            for organ in game.my_organs:
+                if organ.root_id == 1:
+                    root_farmer_organs.append(organ)
+            start_organ, closest_target_protein_empty_space = get_closest_protein_empty_space(root_farmer_organs, target_protein_list)
+            start_organ_x, start_organ_y = start_organ.pos.x, start_organ.pos.y
+            start_organ_id = start_organ.id
+            closest_target_protein_empty_space_x, closest_target_protein_empty_space_y = closest_target_protein_empty_space.pos.x, closest_target_protein_empty_space.pos.y
+            direction = next_to(start_organ_x, start_organ_y, closest_target_protein_empty_space_x, closest_target_protein_empty_space_y)
+            if direction:
+                print(f"GROW {start_organ_id } {closest_target_protein_empty_space_x} {closest_target_protein_empty_space_y} HARVESTER {direction}")
+                root_farmer_counter += 1
+            else:
+                print(f"GROW {start_organ_id} {closest_target_protein_empty_space_x} {closest_target_protein_empty_space_y} BASIC")
+        else:
+            root_farmer_counter += 1
+            grow_random_basic(leaf_id)
+    else:
+        grow_random_basic(leaf_id)
+
+root_farmer_counter = 0
+root_killer_counter = 0
+
 # game loop
 while True:
     game.reset()
@@ -142,11 +207,27 @@ while True:
 
         # Write an action using print
         # To debug: print("Debug messages...", file=sys.stderr, flush=True)
-        my_last_organ = game.my_organs[-1]
-        my_last_organ_id = my_last_organ.id
+        leaves_list = get_leaves()
+        
+        for leaf in leaves_list:
+            leaf_x, leaf_y = leaf.pos.x, leaf.pos.y
+            leaf_id = leaf.id
+            # ROOT FARMER
+            if leaf.root_id == 1:
+                # STEP 1: HARVEST CLOSEST A
+                if root_farmer_counter == 0:
+                    harvest_closest_protein('A', leaf_id)
+                # STEP 2: HARVEST CLOSEST C
+                elif root_farmer_counter == 1:
+                    harvest_closest_protein('C', leaf_id)
+                # STEP 3: HARVEST CLOSEST D
+                elif root_farmer_counter == 2:
+                    harvest_closest_protein('D', leaf_id)
+                # STEP 4: HARVEST CLOSEST C
+                elif root_farmer_counter == 3:
+                    harvest_closest_protein('B', leaf_id)
+                else:
+                    grow_random_basic(leaf_id)
 
-        opp_last_organ = game.opp_organs[-1]
-        opp_pos = opp_last_organ.pos
-        opp_x, opp_y = opp_pos.x, opp_pos.y
-
-        print(f"GROW {my_last_organ_id} {opp_x} {opp_y} BASIC")
+            # ROOT KILLER
+            # else:
