@@ -201,6 +201,7 @@ def harvest_closest_protein(protein_string: str):
         grow_random_basic()
         return root_farmer_counter + 1
 
+main_counter = 0
 root_farmer_counter = 0
 root_killer_counter = 0
 # UTILITY FUNCTIONS --------------------------
@@ -273,17 +274,40 @@ while True:
 
         # Write an action using print
         # To debug: print("Debug messages...", file=sys.stderr, flush=True)
-        # STEP 1: HARVEST CLOSEST A
-        if root_farmer_counter == 0:
-            root_farmer_counter = harvest_closest_protein('A')
-        # STEP 2: HARVEST CLOSEST C
-        elif root_farmer_counter == 1:
-            root_farmer_counter = harvest_closest_protein('C')
-        # STEP 3: HARVEST CLOSEST D
-        elif root_farmer_counter == 2:
-            root_farmer_counter = harvest_closest_protein('D')
-        # STEP 4: HARVEST CLOSEST C
-        elif root_farmer_counter == 3:
-            root_farmer_counter = harvest_closest_protein('B')
+        if main_counter == 0:
+            first_organ = game.my_organs[0]
+            enemy_direction = ('E' if first_organ.pos.x < width/2 else 'W')
+            organ_direction = ('S' if first_organ.pos.y < height/2 else 'N')
+            left_cell = game.grid.get_cells({first_organ.pos.x-1}, {first_organ.pos.y})
+            second_left_cell = game.grid.get_cells({first_organ.pos.x-2}, {first_organ.pos.y})
+            left_cell = game.grid.get_cells({first_organ.pos.x-1}, {first_organ.pos.y})
+            second_left_cell = game.grid.get_cells({first_organ.pos.x-2}, {first_organ.pos.y})
+            while not game.grid.get_cells({first_organ.pos.x-1}, {first_organ.pos.y}).isWall and not game.grid.get_cells({first_organ.pos.x-2}, {first_organ.pos.y}).isWall:
+
+            if first_organ.pos.x < width/2:
+                enemy_direction = 'E'
+                print(f"GROW {first_organ.id} {first_organ.pos.x+1} {first_organ.pos.y} SPORER {enemy_direction}")
+            else:
+                enemy_direction = 'W'
+                if not game.grid.get_cells({first_organ.pos.x-1}, {first_organ.pos.y}).isWall and not game.grid.get_cells({first_organ.pos.x-2}, {first_organ.pos.y}).isWall:
+                    print(f"GROW {first_organ.id} {first_organ.pos.x-1} {first_organ.pos.y} SPORER {enemy_direction}")
+                else:
+                    if first_organ.pos.y < height/2:
+                        print(f"GROW {first_organ.id} {first_organ.pos.x} {first_organ.pos.y+1} SPORER S")
+
+            
         else:
-            root_farmer_counter = grow_random_basic()
+            # STEP 1: HARVEST CLOSEST A
+            if root_farmer_counter == 0:
+                root_farmer_counter = harvest_closest_protein('A')
+            # STEP 2: HARVEST CLOSEST C
+            elif root_farmer_counter == 1:
+                root_farmer_counter = harvest_closest_protein('C')
+            # STEP 3: HARVEST CLOSEST D
+            elif root_farmer_counter == 2:
+                root_farmer_counter = harvest_closest_protein('D')
+            # STEP 4: HARVEST CLOSEST C
+            elif root_farmer_counter == 3:
+                root_farmer_counter = harvest_closest_protein('B')
+            else:
+                root_farmer_counter = grow_random_basic()
