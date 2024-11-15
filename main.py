@@ -1,7 +1,7 @@
 from typing import List, NamedTuple, Dict, Optional, Literal, cast, get_args
 import sys
 import heapq
-
+import random as rd
 # Auto-generated code below aims at helping you parse
 # the standard input according to the problem statement.
 
@@ -41,7 +41,7 @@ class Protein(NamedTuple):
 
 
 WALL_WEIGHT = 100
-PROTEIN_WEIGHT = 1
+PROTEIN_WEIGHT = 100
 EMPTY_WEIGHT = 1
 ORGAN_WEIGHT = 100
 MAX_WEIGHT = 1000
@@ -147,18 +147,25 @@ def next_to(x1, y1, x2, y2):
         return None  # Not adjacent or not a cardinal direction
     
 def grow_random_basic():
+    is_adjacent = False
     for cell in game.grid.cells:
         if not cell.isWall and not cell.protein and not cell.organ in game.opp_organs and not cell.organ in game.my_organs:
-            empty_cell_x, empty_cell_y = cell.pos.x, cell.pos.y
-            min_cost = MAX_WEIGHT
-            origin = game.my_organs[0]
-            for organ in game.my_organs:
-                (cost, _) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, empty_cell_x, empty_cell_y)
-                if cost < min_cost:
-                    min_cost = cost
-                    origin = organ
-            print(f"GROW {origin.id} {empty_cell_x} {empty_cell_y} BASIC")
-            break
+            adjacent_cells = get_adjacent_cells(cell.pos, game.grid)
+            for adjacent_cell in adjacent_cells:
+                if adjacent_cell.organ and adjacent_cell.organ.owner == 1:
+                    empty_cell_x, empty_cell_y = cell.pos.x, cell.pos.y
+                    origin = game.my_organs[0]
+                    is_adjacent = True
+    if not is_adjacent:
+        for cell in game.grid.cells:
+            if not cell.isWall and not cell.organ in game.opp_organs and not cell.organ in game.my_organs:
+                empty_cell_x, empty_cell_y = cell.pos.x, cell.pos.y
+                origin = game.my_organs[0]
+        log(f"Target: {empty_cell_x} {empty_cell_y}")
+        print(f"GROW {origin.id} {empty_cell_x} {empty_cell_y} BASIC")
+    else:
+        log(f"Target: {empty_cell_x} {empty_cell_y}")
+        print(f"GROW {origin.id} {empty_cell_x} {empty_cell_y} BASIC")
 
 
 def get_protein_list(protein_string: str, free_proteins: List[Protein]) -> List[Protein]:
@@ -211,16 +218,22 @@ def get_closest_protein_empty_space(my_organs: List[Organ], target_protein_list:
     origin_organ = my_organs[0]
     destination_harvest_pos = target_protein_list[0]
     destination_protein = target_protein_list[0]
+    log("Start")
     for organ in my_organs:
         # filter protein list to get only possible spaces
         possible_dest = get_good_protein_neighbors(target_protein_list, game.grid)
+        log("For organ")
         for protein, neighbor in possible_dest:
+            log("For protein")
             (cost, path) = game.grid.dijkstra_shortest_path(organ.pos.x, organ.pos.y, neighbor.x, neighbor.y)
+            log(cost)
             if cost < min_cost:
+                log("If")
                 min_cost = cost
                 origin_organ = organ
                 destination_harvest_pos = path[-1]  # last element is the neighbor of possible_prot
                 destination_protein = protein
+    log("End")
     return origin_organ, destination_harvest_pos, destination_protein
 
 # Returns the list of possible neighbors of all proteins (proteins itself not included)
@@ -235,6 +248,15 @@ def get_good_protein_neighbors(target_protein_list: List[Protein], grid: Grid) -
                 useful.append((p, n))
     return useful
 
+def get_adjacent_cells(pos: Pos, grid: Grid) -> List[Cell]:
+    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+    cells = []
+    for dx, dy in directions:
+        n = Pos(dx + pos.x, dy + pos.y)
+        c = grid.get_cell(n)
+        if c is not None:
+            cells.append(c)
+    return cells
 # START ================== Max's functions ==================
 
 # def get_best_sporer_position(organs):
@@ -255,7 +277,7 @@ def spawn_harvester(id, harvester_x, harvester_y, direction):
     print(f"GROW {id} {harvester_x} {harvester_y} HARVESTER {direction}")
 
 def spawn_basic(id, basic_x, basic_y):
-    print(f"GROW {i} {basic_x} {basic_y} BASIC")
+    print(f"GROW {id} {basic_x} {basic_y} BASIC")
 
 def spawn_sporer(id, sporer_x, sporer_y, direction):
     print(f"GROW {id} {sporer_x} {sporer_y} SPORER {direction}")
@@ -265,6 +287,8 @@ def spawn_sporer(id, sporer_x, sporer_y, direction):
 
 game: Game = Game()
 is_sporer = False
+no_A_harvester = True
+no_B_harvester = True
 
 # game loop
 while True:
@@ -311,18 +335,23 @@ while True:
     game.opp_proteins = { 'A': opp_proteins[0], 'B': opp_proteins[1], 'C': opp_proteins[2], 'D': opp_proteins[3] }
 
     required_actions_count: int = int(input())
+    
 
     # Actions
     for i in range(required_actions_count):
         can_spawn_sporer = (game.my_proteins["B"], game.my_proteins["D"]) == (1,1)
         can_spore = (game.my_proteins["A"], game.my_proteins["B"], game.my_proteins["C"], game.my_proteins["D"]) == (1,1,1,1) and is_sporer
         can_spawn_tentacle = (game.my_proteins["B"], game.my_proteins["C"]) == (1,1)
-        need_A = game.my_proteins["A"] < required_actions_count # All roots should be able to grow
-        need_B = game.my_proteins["B"] < 2 * required_actions_count # All roots should be able to create a root
         need_C = game.my_proteins["C"] < required_actions_count # All roots should be able to create a tentacle
         need_D = game.my_proteins["D"] < 2 * required_actions_count # All roots should be able to create a root
 
+        need_A = no_A_harvester
+        need_B = no_B_harvester
+        # need_B = False
+        random_condition = rd.randint(0,3)
+
         if can_spawn_sporer:
+            log("Can spawn sporer")
             pass
             # sporer_x, sporer_y = get_best_sporer_position(game.my_organs)
             # direction = ???
@@ -337,39 +366,20 @@ while True:
         #     # spawn_tentacle(i, spawn_position.pos.x, spawn_position.pos.x, direction)
         #     pass
         elif need_A:
+            log("Need A")
             a_proteins = get_protein_list("A", game.free_proteins)
             origin_organ, destination_harvest_pos, destination_protein = get_closest_protein_empty_space(game.my_organs, a_proteins)
-            direction = next_to(origin_organ.pos.x, origin_organ.pos.y, destination_harvest_pos.x, destination_harvest_pos.y)
+            direction = next_to(destination_harvest_pos.x, destination_harvest_pos.y,origin_organ.pos.x, origin_organ.pos.y)
+            log(f"Direction: {direction}")
             if direction:
+                direction = next_to(destination_harvest_pos.x, destination_harvest_pos.y,destination_protein.pos.x, destination_protein.pos.y)
                 spawn_harvester(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y, direction)
+                no_A_harvester = False
             else:
+                log(f"Direction: {direction}")
                 spawn_basic(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y)
-        elif need_B:
-            b_proteins = get_protein_list("B", game.free_proteins)
-            origin_organ, destination_harvest_pos, destination_protein = get_closest_protein_empty_space(game.my_organs, b_proteins)
-            direction = next_to(origin_organ.pos.x, origin_organ.pos.y, destination_harvest_pos.x, destination_harvest_pos.y)
-            if direction:
-                spawn_harvester(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y, direction)
-            else:
-                spawn_basic(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y)
-            pass
-        elif need_C:
-            c_proteins = get_protein_list("C", game.free_proteins)
-            origin_organ, destination_harvest_pos, destination_protein = get_closest_protein_empty_space(game.my_organs, c_proteins)
-            direction = next_to(origin_organ.pos.x, origin_organ.pos.y, destination_harvest_pos.x, destination_harvest_pos.y)
-            if direction:
-                spawn_harvester(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y, direction)
-            else:
-                spawn_basic(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y)
-            pass
-        elif need_D:
-            d_proteins = get_protein_list("D", game.free_proteins)
-            origin_organ, destination_harvest_pos, destination_protein = get_closest_protein_empty_space(game.my_organs, d_proteins)
-            direction = next_to(origin_organ.pos.x, origin_organ.pos.y, destination_harvest_pos.x, destination_harvest_pos.y)
-            if direction:
-                spawn_harvester(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y, direction)
-            else:
-                spawn_basic(origin_organ.id, destination_harvest_pos.x, destination_harvest_pos.y)
-            pass
+        # elif random_condition == 1:
+        #     b_pr
         else:
+            log("Grow random basic")
             grow_random_basic()
