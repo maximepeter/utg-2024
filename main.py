@@ -12,7 +12,7 @@ def log(*message: str):
 
 ProteinType = Literal['A', 'B', 'C', 'D']
 DirectionType = Literal['N', 'E', 'S', 'W']
-OrganType = Literal['ROOT', 'BASIC', 'HARVESTER']
+OrganType = Literal['ROOT', 'BASIC', 'HARVESTER', 'SPORER']
 WALL: str = 'WALL'
 
 width: int
@@ -237,25 +237,54 @@ def get_good_protein_neighbors(target_protein_list: List[Protein], grid: Grid) -
 
 # START ================== Max's functions ==================
 
-# def get_best_sporer_position(organs):
-#     ???
-#     return x,y
-
-# def get_best_sporer_direction(organ: Organ, grid: Grid):
-#     directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-#     best_position = None
-#     best_direction = None
-#     best_score = max(width-1, height-1)
-#     for dx, dy in directions:
-#         possible_sporer_pos = Pos(dx + organ.pos.x, dy + organ.pos.y)
-#         possible_sporer_cell = grid.get_cell(possible_sporer_pos)
-#         if (possible_sporer_cell is not None) and not (possible_sporer_cell.isWall or possible_sporer_cell.organ):
+# Returns organ to spawn, sporer position (Pos), direction (Pos) and distance
+def get_best_sporer_position(organs: List[Organ], grid: Grid) -> tuple[Organ, Pos, Pos]:
+    best_organ = None
+    best_position = None
+    best_direction = None
+    best_score = 0
+    for organ in organs:
+        # look for neighbors to put sporer
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        for dx, dy in directions:
+            possible_sporer_pos = Pos(dx + organ.pos.x, dy + organ.pos.y)
+            possible_sporer_cell = grid.get_cell(possible_sporer_pos)
+            if (possible_sporer_cell is not None) and not (possible_sporer_cell.isWall or possible_sporer_cell.organ):
+                # look for orientation of sporer
+                for sdx in [1, -1]:
+                    # count spaces until next obstacle
+                    for steps_x in range(possible_sporer_pos.x, width if sdx > 0 else -1, sdx):  # increasing or decreasing positions on x
+                        cell_on_direction = grid.get_cell(Pos(possible_sporer_pos.x + steps_x, possible_sporer_pos.y))
+                        if not cell_on_direction or cell_on_direction.isWall or (cell_on_direction.organ and cell_on_direction.organ.owner != 1):
+                            break
+                        elif steps_x > best_score:
+                            best_score = steps_x
+                            best_position = possible_sporer_pos
+                            best_direction = Pos(sdx, 0)
+                            best_organ = organ
+                for sdy in [1, -1]:
+                    for steps_y in range(possible_sporer_pos.y, height if sdy > 0 else -1, sdy):  # increasing or decreasing positions on y
+                        cell_on_direction = grid.get_cell(Pos(possible_sporer_pos.x, possible_sporer_pos.y + steps_y))
+                        if not cell_on_direction or cell_on_direction.isWall or (cell_on_direction.organ and cell_on_direction.organ.owner != 1):
+                            break
+                        elif steps_y > best_score:
+                            best_score = steps_y
+                            best_position = possible_sporer_pos
+                            best_direction = Pos(0, sdy)
+                            best_organ = organ
+    return best_organ, best_position, best_direction, best_score
+                            
+def spore(organs: List[Organ], grid):
+    for organ in organs:
+        if organ.organ_type == 'SPORER':
+            _, _, d, s = get_best_sporer_position([organ], grid)
+            print(f"SPORE {organ.id} {d.x+s} {d.y+s}")
 
 def spawn_harvester(id, harvester_x, harvester_y, direction):
     print(f"GROW {id} {harvester_x} {harvester_y} HARVESTER {direction}")
 
 def spawn_basic(id, basic_x, basic_y):
-    print(f"GROW {i} {basic_x} {basic_y} BASIC")
+    print(f"GROW {id} {basic_x} {basic_y} BASIC")
 
 def spawn_sporer(id, sporer_x, sporer_y, direction):
     print(f"GROW {id} {sporer_x} {sporer_y} SPORER {direction}")
@@ -314,8 +343,8 @@ while True:
 
     # Actions
     for i in range(required_actions_count):
-        can_spawn_sporer = (game.my_proteins["B"], game.my_proteins["D"]) == (1,1)
-        can_spore = (game.my_proteins["A"], game.my_proteins["B"], game.my_proteins["C"], game.my_proteins["D"]) == (1,1,1,1) and is_sporer
+        can_spawn_sporer = (game.my_proteins["B"], game.my_proteins["D"]) >= (1,1) and not is_sporer
+        can_spore = (game.my_proteins["A"], game.my_proteins["B"], game.my_proteins["C"], game.my_proteins["D"]) >= (1,1,1,1) and is_sporer
         can_spawn_tentacle = (game.my_proteins["B"], game.my_proteins["C"]) == (1,1)
         need_A = game.my_proteins["A"] < required_actions_count # All roots should be able to grow
         need_B = game.my_proteins["B"] < 2 * required_actions_count # All roots should be able to create a root
@@ -323,15 +352,14 @@ while True:
         need_D = game.my_proteins["D"] < 2 * required_actions_count # All roots should be able to create a root
 
         if can_spawn_sporer:
-            pass
-            # sporer_x, sporer_y = get_best_sporer_position(game.my_organs)
-            # direction = ???
-            # spawn_sporer(i, sporer_x, sporer_y, direction)
-            # is_sporer = True
-        # elif can_spore:
-        #     spore(???)
+            sporer_spawner_organ, sporer_pos, sporer_dir_pos = get_best_sporer_position(game.my_organs, game.grid)
+            direction = next_to(sporer_pos.x, sporer_pos.y, sporer_pos.x + sporer_dir_pos.x, sporer_pos.y +sporer_dir_pos.y)
+            spawn_sporer(sporer_spawner_organ.id, sporer_pos.x, sporer_pos.y, direction)
+            is_sporer = True
+        elif can_spore:
+            spore(game.my_organs, game.grid)
         # elif can_spawn_tentacle:
-        #     # Grow a tentacle as close as possible to the ennemy
+        #     # Grow a tentacle as close as possible to the enemy
         #     # spawn_tentacle(???)
         #     # spawn_position = get_pos_close_to_enemy(game.grid, game.my_organs, game.opp_organs)
         #     # spawn_tentacle(i, spawn_position.pos.x, spawn_position.pos.x, direction)
